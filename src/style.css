@@ -1,0 +1,4 @@
+.list-messages span {
+    display: flex;
+    justify-content: center;
+}
