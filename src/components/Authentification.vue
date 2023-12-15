@@ -1,9 +1,16 @@
 <template>
-
+    <div>
+        Authentication...
+    </div>
 </template>
 
 <script setup lang="ts">
+import { onMounted } from "vue";
 import { useRouter } from "vue-router";
+
+
 const router = useRouter();
-router.push('/');
+onMounted(() => {
+    router.push('/');
+});
 </script>
