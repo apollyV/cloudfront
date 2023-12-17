@@ -16,6 +16,7 @@ import { ref } from 'vue';
 import MessageComponent from './Message-component.vue';
 import InfiniteLoading from "v3-infinite-loading";
 import axios from 'axios';
+import { useAuthStore } from '../stores/auth';
 
 interface Message {
   message: string;
@@ -36,11 +37,23 @@ const messages = ref<Message[]>([]);
 let displayedMessages = ref<MessagesDisplay[]>([]);
 
 // Fonction pour récupérer et formater les messages
-const fetchMessages = async () => {
-  try {
-    // Envoi de la requête HTTP à l'API avec axios
-    const response = await axios.get<{ messages: Message[] }>('https://bzel021qe5.execute-api.eu-west-1.amazonaws.com/postMessages/message');
+const authStore = useAuthStore(); // Utiliser Pinia pour accéder au store d'authentification
+const token = authStore.accessToken; // Obtenir le token d'accès
 
+const fetchMessages = async () => {
+  if (token) {
+    try {
+      // Configurer les headers pour inclure le token d'accès dans les requêtes
+      const config = {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      };
+
+      // Faire l'appel à l'API en passant le token dans les headers
+      const response = await axios.get('https://bzel021qe5.execute-api.eu-west-1.amazonaws.com/postMessages/message', config);
+      console.log("j'ai get les messages à l'aide du token :");
+      console.log(token);
     const messagesArray = response.data.messages;
 
     // Tri des messages par date en ordre décroissant
@@ -51,7 +64,7 @@ const fetchMessages = async () => {
     });
 
     // Formatage des messages pour l'affichage
-    displayedMessages.value = messagesArray.map(msg => {
+    displayedMessages.value = messagesArray.map((msg: { timestamp_utc_iso8601: string | number | Date; username: any; message: any; }) => {
       const date = new Date(msg.timestamp_utc_iso8601);
       const formattedDate = date.toLocaleDateString('fr-FR') + ' ' + date.toLocaleTimeString('fr-FR');
       return {
@@ -65,6 +78,9 @@ const fetchMessages = async () => {
     // Gestion des erreurs
     console.error('Erreur lors de la récupération des messages:', error);
     displayedMessages.value = [];
+  }
+  } else {
+      console.log("pas de token valide");
   }
 };
 

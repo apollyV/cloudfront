@@ -1,59 +1,44 @@
-import { createRouter, createWebHashHistory, RouteRecordRaw } from 'vue-router';
+// router/index.js
+import { createRouter, createWebHistory } from 'vue-router';
 import HomeVue from '../components/Home.vue';
-import AuthentificationVue from '../components/Authentification.vue';
-import MessagesComponentVue from '../components/Messages-component.vue';
-import { useAuthStore } from '../assets/auth';
+import LoginVue from '../components/Login.vue';
+import { useAuthStore } from '../stores/auth';
 
-const routes: Array<RouteRecordRaw> = [
-  {
-    path: '/',
-    name: 'home',
-    component: HomeVue
-  },
-  {
-    path: '/authentification',
-    name: 'authentification',
-    component: AuthentificationVue
-  },
-  {
-    path: '/messages',
-    name: 'messages',
-    component: MessagesComponentVue
-  }
-]
+const routes = [
+  { path: '/', name: 'Home', component: HomeVue },
+  { path: '/login', name: 'Login', component: LoginVue },
+];
 
 const router = createRouter({
-  history: createWebHashHistory(),
-  routes
-})
-
-const awsHostedUiUrl = 'https://saturn.auth.eu-west-1.amazoncognito.com/oauth2/authorize?client_id=69bjltclm7jhdmgpf2pj0rhq0p&response_type=code&scope=email+openid+phone&redirect_uri='
-const buildedUrl = `${awsHostedUiUrl}${encodeURIComponent(import.meta.env.VITE_COGNITO_REDIRECT_URI_AUTHENTICATE)}`
+  history: createWebHistory(),
+  routes,
+});
 
 router.beforeEach(async (to, _from, next) => {
-  const authStore = useAuthStore()
-  const isAuthenticated = authStore.isAuthenticated
-  console.log(`isAuthenticated: ${isAuthenticated}`)
-  console.log(authStore.id_token)
+  const authStore = useAuthStore();
+  const isAuthenticated = authStore.isAuthenticated;
+  const code = to.query.code;
+
+  // Si l'utilisateur est authentifié, passez à la page suivante
   if (isAuthenticated) {
-    next()
-  } else {
-    const code = to.query.code
-
-    if (code && !authStore.id_token) {
-      await authStore.loadToken(code as string)
-    }
-
-    if (authStore.isAuthenticated) {
-      if (typeof to.name === 'string') {
-        next({ name: to.name })
-      } else {
-        next('/')
-      }
-    } else {
-      window.location.href = buildedUrl
-    }
+    next();
+    return;
   }
-})
 
-export default router
+  // Si nous avons un code et que l'utilisateur n'est pas authentifié, chargeons le token
+  if (typeof code === 'string' && code) {
+    try {
+      await authStore.loadToken(code);
+      // Après avoir chargé le token, nettoyez l'URL
+      next({ path: '/', query: {} }); // Redirigez vers la page d'accueil sans code dans l'URL
+    } catch (error) {
+      console.error('Erreur lors de la connexion :', error);
+      next('/login'); // Redirigez vers la page de connexion en cas d'erreur
+    }
+  } else {
+    // Redirigez vers l'URL de Cognito pour s'authentifier
+    window.location.href = "https://saturn.auth.eu-west-1.amazoncognito.com/oauth2/authorize?client_id=69bjltclm7jhdmgpf2pj0rhq0p&response_type=code&scope=email+openid+phone&redirect_uri=https%3A%2F%2Fd2jbfajeqng3d3.cloudfront.net";
+  }
+});
+
+export default router;
